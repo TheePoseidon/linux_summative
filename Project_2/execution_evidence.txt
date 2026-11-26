@@ -1,0 +1,215 @@
+================================================================================
+ PROJECT 2 - EXECUTION EVIDENCE
+ Program : sensor_stats (sensor_stats.asm)
+ Produced: by running ./run_tests.sh in the project folder
+================================================================================
+
+==============================================================
+ENVIRONMENT AND BUILD
+==============================================================
+$ uname -srm
+Linux 6.18.44-fc-v819 x86_64
+[exit status: 0]
+
+$ grep PRETTY_NAME /etc/os-release
+PRETTY_NAME="Ubuntu 24.04.5 LTS"
+[exit status: 0]
+
+$ nasm -v
+NASM version 2.16.01
+[exit status: 0]
+
+$ ld -v
+GNU ld (GNU Binutils for Ubuntu) 2.42
+[exit status: 0]
+
+$ nasm -f elf64 sensor_stats.asm -o sensor_stats.o
+[exit status: 0]
+
+$ ld sensor_stats.o -o sensor_stats
+[exit status: 0]
+
+==============================================================
+TEST 1 - Example from the assignment brief
+==============================================================
+$ cat -A tests/example.txt
+25$
+30$
+invalid$
+18$
+42$
+-5$
+[exit status: 0]
+
+$ ./sensor_stats tests/example.txt
+Total records: 6
+Valid measurements: 4
+Invalid measurements: 2
+Sum of valid measurements: 115
+Minimum measurement: 18
+Maximum measurement: 42
+[exit status: 0]
+
+==============================================================
+TEST 2 - sensor_readings.txt (valid, invalid and empty records)
+==============================================================
+$ cat -nA sensor_readings.txt
+     1	25$
+     2	30$
+     3	invalid$
+     4	18$
+     5	42$
+     6	-5$
+     7	$
+     8	100$
+     9	0$
+    10	101$
+    11	007$
+    12	12a$
+    13	  64  $
+    14	+15$
+    15	$
+    16	3.5$
+    17	1 2$
+    18	   $
+    19	999999999999999999999$
+    20	99$
+    21	50$
+[exit status: 0]
+
+$ ./sensor_stats
+Total records: 21
+Valid measurements: 11
+Invalid measurements: 10
+Sum of valid measurements: 450
+Minimum measurement: 0
+Maximum measurement: 100
+[exit status: 0]
+
+==============================================================
+TEST 3 - Same data with Windows CRLF line endings
+==============================================================
+$ cat -nA tests/crlf.txt
+     1	25^M$
+     2	30^M$
+     3	invalid^M$
+     4	18^M$
+     5	42^M$
+     6	-5^M$
+     7	^M$
+     8	100^M$
+     9	0^M$
+    10	101^M$
+    11	007^M$
+    12	12a^M$
+    13	  64  ^M$
+    14	+15^M$
+    15	^M$
+    16	3.5^M$
+    17	1 2^M$
+    18	   ^M$
+    19	999999999999999999999^M$
+    20	99^M$
+    21	50^M$
+[exit status: 0]
+
+$ ./sensor_stats tests/crlf.txt
+Total records: 21
+Valid measurements: 11
+Invalid measurements: 10
+Sum of valid measurements: 450
+Minimum measurement: 0
+Maximum measurement: 100
+[exit status: 0]
+
+==============================================================
+TEST 4 - Last line has no trailing newline
+==============================================================
+$ cat -A tests/no_newline.txt
+10$
+20$
+30      <- no $ after 30: the file has no final newline
+
+$ ./sensor_stats tests/no_newline.txt
+Total records: 3
+Valid measurements: 3
+Invalid measurements: 0
+Sum of valid measurements: 60
+Minimum measurement: 10
+Maximum measurement: 30
+[exit status: 0]
+
+==============================================================
+TEST 5 - No valid measurements
+==============================================================
+$ cat -A tests/no_valid.txt
+abc$
+$
+-1$
+150$
+$
+[exit status: 0]
+
+$ ./sensor_stats tests/no_valid.txt
+Total records: 5
+Valid measurements: 0
+Invalid measurements: 5
+Sum of valid measurements: 0
+Minimum measurement: N/A
+Maximum measurement: N/A
+[exit status: 0]
+
+==============================================================
+TEST 6 - Empty file (0 bytes)
+==============================================================
+$ wc -c tests/empty.txt
+0 tests/empty.txt
+[exit status: 0]
+
+$ ./sensor_stats tests/empty.txt
+Total records: 0
+Valid measurements: 0
+Invalid measurements: 0
+Sum of valid measurements: 0
+Minimum measurement: N/A
+Maximum measurement: N/A
+[exit status: 0]
+
+==============================================================
+TEST 7 - File cannot be opened (does not exist)
+==============================================================
+$ ./sensor_stats tests/missing.txt
+Error: cannot open file 'tests/missing.txt' (errno 2)
+[exit status: 1]
+
+==============================================================
+TEST 8 - Read error (path is a directory)
+==============================================================
+$ ./sensor_stats tests
+Error: failed while reading file 'tests' (errno 21)
+[exit status: 2]
+
+==============================================================
+TEST 9 - Records split across reads (1-byte buffer)
+==============================================================
+Built a copy with BUF_SIZE=1, so every read() returns one byte.
+$ cat tests/tiny_lf.out
+Total records: 21
+Valid measurements: 11
+Invalid measurements: 10
+Sum of valid measurements: 450
+Minimum measurement: 0
+Maximum measurement: 100
+[exit status: 0]
+
+Result: output identical to the 4096-byte buffer build (LF and CRLF).
+==============================================================
+TEST 10 - System calls: file opened, read, closed, process exits
+==============================================================
+$ strace -e trace=open,read,close,exit ./sensor_stats tests/example.txt > /dev/null
+open("tests/example.txt", O_RDONLY)     = 3
+read(3, "25\n30\ninvalid\n18\n42\n-5\n", 4096) = 23
+read(3, "", 4096)                       = 0
+close(3)                                = 0
+exit(0)                                 = ?
++++ exited with 0 +++
