@@ -1,0 +1,152 @@
+Library reservation system: 15 reservations, queue capacity 5
+Submit: 1 s each | Process: 3 s each | Monitor: every 4 s
+Rule: even book ID = available (approve), odd book ID = unavailable (reject)
+
+[  0.0s] STAFF   : queue EMPTY - waiting for reservations
+[  1.0s] STUDENT : submitted reservation #1001 for book 175   | queue 1/5
+[  1.0s] STAFF   : processing reservation #1001 for book 175 | queue 0/5
+[  2.0s] STUDENT : submitted reservation #1002 for book 162   | queue 1/5
+[  3.0s] STUDENT : submitted reservation #1003 for book 198   | queue 2/5
+[  4.0s] MONITOR : ---------- system report ----------
+                    Total submitted   : 3
+                    Total processed   : 0
+                    Approved          : 0
+                    Rejected          : 0
+                    Queue size        : 2/5
+                    -----------------------------------
+[  4.0s] STAFF   : reservation #1001 REJECTED (book 175 is unavailable)
+[  4.0s] STAFF   : processing reservation #1002 for book 162 | queue 1/5
+[  4.0s] STUDENT : submitted reservation #1004 for book 175   | queue 2/5
+[  5.0s] STUDENT : submitted reservation #1005 for book 131   | queue 3/5
+[  6.0s] STUDENT : submitted reservation #1006 for book 172   | queue 4/5
+[  7.0s] STAFF   : reservation #1002 APPROVED (book 162 is available)
+[  7.0s] STAFF   : processing reservation #1003 for book 198 | queue 3/5
+[  7.0s] STUDENT : submitted reservation #1007 for book 116   | queue 4/5
+[  8.0s] MONITOR : ---------- system report ----------
+                    Total submitted   : 7
+                    Total processed   : 2
+                    Approved          : 1
+                    Rejected          : 1
+                    Queue size        : 4/5
+                    -----------------------------------
+[  8.0s] STUDENT : submitted reservation #1008 for book 127   | queue 5/5
+[  9.0s] STUDENT : queue FULL (5/5) - reservation #1009 waiting
+[ 10.0s] STAFF   : reservation #1003 APPROVED (book 198 is available)
+[ 10.0s] STAFF   : processing reservation #1004 for book 175 | queue 4/5
+[ 10.0s] STUDENT : space available - resuming with reservation #1009
+[ 10.0s] STUDENT : submitted reservation #1009 for book 177   | queue 5/5
+[ 11.0s] STUDENT : queue FULL (5/5) - reservation #1010 waiting
+[ 12.0s] MONITOR : ---------- system report ----------
+                    Total submitted   : 9
+                    Total processed   : 3
+                    Approved          : 2
+                    Rejected          : 1
+                    Queue size        : 5/5
+                    -----------------------------------
+[ 13.0s] STAFF   : reservation #1004 REJECTED (book 175 is unavailable)
+[ 13.0s] STAFF   : processing reservation #1005 for book 131 | queue 4/5
+[ 13.0s] STUDENT : space available - resuming with reservation #1010
+[ 13.0s] STUDENT : submitted reservation #1010 for book 146   | queue 5/5
+[ 14.0s] STUDENT : queue FULL (5/5) - reservation #1011 waiting
+[ 16.0s] MONITOR : ---------- system report ----------
+                    Total submitted   : 10
+                    Total processed   : 4
+                    Approved          : 2
+                    Rejected          : 2
+                    Queue size        : 5/5
+                    -----------------------------------
+[ 16.0s] STAFF   : reservation #1005 REJECTED (book 131 is unavailable)
+[ 16.0s] STAFF   : processing reservation #1006 for book 172 | queue 4/5
+[ 16.0s] STUDENT : space available - resuming with reservation #1011
+[ 16.0s] STUDENT : submitted reservation #1011 for book 162   | queue 5/5
+[ 17.0s] STUDENT : queue FULL (5/5) - reservation #1012 waiting
+[ 19.0s] STAFF   : reservation #1006 APPROVED (book 172 is available)
+[ 19.0s] STAFF   : processing reservation #1007 for book 116 | queue 4/5
+[ 19.0s] STUDENT : space available - resuming with reservation #1012
+[ 19.0s] STUDENT : submitted reservation #1012 for book 146   | queue 5/5
+[ 20.0s] MONITOR : ---------- system report ----------
+                    Total submitted   : 12
+                    Total processed   : 6
+                    Approved          : 3
+                    Rejected          : 3
+                    Queue size        : 5/5
+                    -----------------------------------
+[ 20.0s] STUDENT : queue FULL (5/5) - reservation #1013 waiting
+[ 22.0s] STAFF   : reservation #1007 APPROVED (book 116 is available)
+[ 22.0s] STAFF   : processing reservation #1008 for book 127 | queue 4/5
+[ 22.0s] STUDENT : space available - resuming with reservation #1013
+[ 22.0s] STUDENT : submitted reservation #1013 for book 117   | queue 5/5
+[ 23.0s] STUDENT : queue FULL (5/5) - reservation #1014 waiting
+[ 24.0s] MONITOR : ---------- system report ----------
+                    Total submitted   : 13
+                    Total processed   : 7
+                    Approved          : 4
+                    Rejected          : 3
+                    Queue size        : 5/5
+                    -----------------------------------
+[ 25.0s] STAFF   : reservation #1008 REJECTED (book 127 is unavailable)
+[ 25.0s] STAFF   : processing reservation #1009 for book 177 | queue 4/5
+[ 25.0s] STUDENT : space available - resuming with reservation #1014
+[ 25.0s] STUDENT : submitted reservation #1014 for book 156   | queue 5/5
+[ 26.0s] STUDENT : queue FULL (5/5) - reservation #1015 waiting
+[ 28.0s] MONITOR : ---------- system report ----------
+                    Total submitted   : 14
+                    Total processed   : 8
+                    Approved          : 4
+                    Rejected          : 4
+                    Queue size        : 5/5
+                    -----------------------------------
+[ 28.0s] STAFF   : reservation #1009 REJECTED (book 177 is unavailable)
+[ 28.0s] STAFF   : processing reservation #1010 for book 146 | queue 4/5
+[ 28.0s] STUDENT : space available - resuming with reservation #1015
+[ 28.0s] STUDENT : submitted reservation #1015 for book 164   | queue 5/5
+[ 28.0s] STUDENT : all 15 reservations submitted - student thread exiting
+[ 31.0s] STAFF   : reservation #1010 APPROVED (book 146 is available)
+[ 31.0s] STAFF   : processing reservation #1011 for book 162 | queue 4/5
+[ 32.0s] MONITOR : ---------- system report ----------
+                    Total submitted   : 15
+                    Total processed   : 10
+                    Approved          : 5
+                    Rejected          : 5
+                    Queue size        : 4/5
+                    -----------------------------------
+[ 34.0s] STAFF   : reservation #1011 APPROVED (book 162 is available)
+[ 34.0s] STAFF   : processing reservation #1012 for book 146 | queue 3/5
+[ 36.0s] MONITOR : ---------- system report ----------
+                    Total submitted   : 15
+                    Total processed   : 11
+                    Approved          : 6
+                    Rejected          : 5
+                    Queue size        : 3/5
+                    -----------------------------------
+[ 37.0s] STAFF   : reservation #1012 APPROVED (book 146 is available)
+[ 37.0s] STAFF   : processing reservation #1013 for book 117 | queue 2/5
+[ 40.0s] MONITOR : ---------- system report ----------
+                    Total submitted   : 15
+                    Total processed   : 12
+                    Approved          : 7
+                    Rejected          : 5
+                    Queue size        : 2/5
+                    -----------------------------------
+[ 40.0s] STAFF   : reservation #1013 REJECTED (book 117 is unavailable)
+[ 40.0s] STAFF   : processing reservation #1014 for book 156 | queue 1/5
+[ 43.0s] STAFF   : reservation #1014 APPROVED (book 156 is available)
+[ 43.0s] STAFF   : processing reservation #1015 for book 164 | queue 0/5
+[ 44.0s] MONITOR : ---------- system report ----------
+                    Total submitted   : 15
+                    Total processed   : 14
+                    Approved          : 8
+                    Rejected          : 6
+                    Queue size        : 0/5
+                    -----------------------------------
+[ 46.0s] STAFF   : reservation #1015 APPROVED (book 164 is available)
+[ 46.0s] STAFF   : all 15 reservations processed - staff thread exiting
+[ 46.0s] MONITOR : all reservations processed - monitor thread exiting
+
+[ 46.0s] FINAL SUMMARY
+          Total submitted : 15
+          Total processed : 15
+          Approved        : 9
+          Rejected        : 6
+          Queue size      : 0/5
+All threads joined; mutex and condition variables destroyed. Program terminated successfully.
