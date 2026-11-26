@@ -1,0 +1,450 @@
+
+##########################################################################
+# BUILD AND START THE SERVER
+##########################################################################
+$ gcc -Wall -Wextra -pthread -o server server.c
+$ gcc -Wall -Wextra -o client client.c
+$ ./server 9600
+[19:55:00] Server listening on port 9600 (max 10 clients)
+[19:55:00] Event 101 AI Workshop            capacity 5
+[19:55:00] Event 102 Cybersecurity Seminar  capacity 4
+[19:55:00] Event 103 Research Conference    capacity 6
+
+##########################################################################
+# STEP 1 - Unsuccessful authentication            (requirement 2)
+##########################################################################
+A client enters two unknown student IDs, then quits.
+
+Connecting to 127.0.0.1:9600 ...
+Connected. University Event Registration Server - log in with: LOGIN <student_id>
+
+Enter your student ID (or 'q' to quit): S9999
+  [FAILED] Authentication failed: Unknown student ID 'S9999' (2 attempt(s) left)
+Enter your student ID (or 'q' to quit): ABC123
+  [FAILED] Authentication failed: Unknown student ID 'ABC123' (1 attempt(s) left)
+Enter your student ID (or 'q' to quit): q
+Server: Goodbye
+Registration session closed. Goodbye.
+--- server log ---
+[19:55:00] Client #1 connected from 127.0.0.1:59354
+[19:55:00] Connected clients (1/10): [#1 127.0.0.1:59354 not logged in]
+[19:55:00] Client #1: login REJECTED for unknown ID 'S9999' (attempt 1/3)
+[19:55:00] Client #1: login REJECTED for unknown ID 'ABC123' (attempt 2/3)
+[19:55:00] Client #1 disconnected (client sent QUIT)
+[19:55:00] Connected clients (0/10): none
+
+##########################################################################
+# STEP 2 - Successful authentication, event list, registration,
+#          duplicate registration        (requirements 1, 3, 4 and 6)
+##########################################################################
+S1001 logs in (the event list is shown automatically), registers for
+event 101, then tries to register for event 101 again.
+
+Connecting to 127.0.0.1:9600 ...
+Connected. University Event Registration Server - log in with: LOGIN <student_id>
+
+Enter your student ID (or 'q' to quit): S1001
+
+  [SUCCESS] Authentication successful. Welcome, Amina Uwase (S1001)
+
+Available events:
+  ID   Event                    Capacity  Registered  Available
+  ---- ------------------------ --------  ----------  ---------
+  101  AI Workshop                     5           0          5
+  102  Cybersecurity Seminar           4           0          4
+  103  Research Conference             6           0          6
+
+---------------- MENU ----------------
+  1. View events
+  2. Register for an event
+  3. View my registrations
+  4. Exit
+Choose an option (1-4): 2
+
+  ID   Event                    Capacity  Registered  Available
+  ---- ------------------------ --------  ----------  ---------
+  101  AI Workshop                     5           0          5
+  102  Cybersecurity Seminar           4           0          4
+  103  Research Conference             6           0          6
+
+Enter the event ID to register for (0 to cancel): 101
+  [SUCCESS] Registration confirmed: S1001 registered for 101 AI Workshop (place 1 of 5, 4 left)
+
+---------------- MENU ----------------
+  1. View events
+  2. Register for an event
+  3. View my registrations
+  4. Exit
+Choose an option (1-4): 2
+
+  ID   Event                    Capacity  Registered  Available
+  ---- ------------------------ --------  ----------  ---------
+  101  AI Workshop                     5           1          4
+  102  Cybersecurity Seminar           4           0          4
+  103  Research Conference             6           0          6
+
+Enter the event ID to register for (0 to cancel): 101
+  [REJECTED] Duplicate registration: S1001 is already registered for 101 AI Workshop
+
+---------------- MENU ----------------
+  1. View events
+  2. Register for an event
+  3. View my registrations
+  4. Exit
+Choose an option (1-4): 3
+
+  Your registrations:
+    101  AI Workshop
+
+---------------- MENU ----------------
+  1. View events
+  2. Register for an event
+  3. View my registrations
+  4. Exit
+Choose an option (1-4): 4
+Server: Goodbye
+Registration session closed. Goodbye, S1001.
+--- server log ---
+[19:55:01] Client #2 connected from 127.0.0.1:59370
+[19:55:01] Connected clients (1/10): [#2 127.0.0.1:59370 not logged in]
+[19:55:01] Client #2: authenticated as S1001 (Amina Uwase)
+[19:55:01] Connected clients (1/10): [#2 127.0.0.1:59370 S1001]
+[19:55:01] S1001 REGISTERED for 101 AI Workshop (1/5)
+[19:55:01] S1001 DUPLICATE registration for 101 rejected
+[19:55:01] Client #2 disconnected (client sent QUIT)
+[19:55:01] Connected clients (0/10): none
+
+##########################################################################
+# STEP 3 - Six simultaneous clients register for event 102 at the
+#          same moment (capacity 4)          (requirements 7 and 8)
+##########################################################################
+Six client instances log in and stay connected. At the same instant
+all six send REGISTER 102. Event 102 has only 4 places.
+
+While all six are connected:
+
+$ ss -tn state established '( sport = :9600 )'
+Recv-Q Send-Q Local Address:Port Peer Address:Port 
+0      0          127.0.0.1:9600    127.0.0.1:59414
+0      0          127.0.0.1:9600    127.0.0.1:59420
+0      0          127.0.0.1:9600    127.0.0.1:59406
+0      0          127.0.0.1:9600    127.0.0.1:59430
+0      0          127.0.0.1:9600    127.0.0.1:59398
+0      0          127.0.0.1:9600    127.0.0.1:59384
+=> 6 TCP connections established to the server
+
+[19:55:01] Connected clients (6/10): [#3 127.0.0.1:59384 S1002] [#4 127.0.0.1:59398 S1003] [#5 127.0.0.1:59406 S1006] [#6 127.0.0.1:59414 S1004] [#7 127.0.0.1:5
+...
+
+Registration result shown to each student:
+  S1002  [REJECTED] Event full - no places left: 102 Cybersecurity Seminar is full (4/4)
+  S1003  [SUCCESS] Registration confirmed: S1003 registered for 102 Cybersecurity Seminar (place 4 of 4, 0 left)
+  S1004  [REJECTED] Event full - no places left: 102 Cybersecurity Seminar is full (4/4)
+  S1005  [SUCCESS] Registration confirmed: S1005 registered for 102 Cybersecurity Seminar (place 2 of 4, 2 left)
+  S1006  [SUCCESS] Registration confirmed: S1006 registered for 102 Cybersecurity Seminar (place 3 of 4, 1 left)
+  S1007  [SUCCESS] Registration confirmed: S1007 registered for 102 Cybersecurity Seminar (place 1 of 4, 3 left)
+
+Full transcript of one of the six clients (S1007):
+  | Connecting to 127.0.0.1:9600 ...
+  | Connected. University Event Registration Server - log in with: LOGIN <student_id>
+  | 
+  | Enter your student ID (or 'q' to quit): S1007
+  | 
+  |   [SUCCESS] Authentication successful. Welcome, Grace Wanjiru (S1007)
+  | 
+  | Available events:
+  |   ID   Event                    Capacity  Registered  Available
+  |   ---- ------------------------ --------  ----------  ---------
+  |   101  AI Workshop                     5           1          4
+  |   102  Cybersecurity Seminar           4           0          4
+  |   103  Research Conference             6           0          6
+  | 
+  | ---------------- MENU ----------------
+  |   1. View events
+  |   2. Register for an event
+  |   3. View my registrations
+  |   4. Exit
+  | Choose an option (1-4): 2
+  | 
+  |   ID   Event                    Capacity  Registered  Available
+  |   ---- ------------------------ --------  ----------  ---------
+  |   101  AI Workshop                     5           1          4
+  |   102  Cybersecurity Seminar           4           0          4
+  |   103  Research Conference             6           0          6
+  | 
+  | Enter the event ID to register for (0 to cancel): 102
+  |   [SUCCESS] Registration confirmed: S1007 registered for 102 Cybersecurity Seminar (place 1 of 4, 3 left)
+  | 
+  | ---------------- MENU ----------------
+  |   1. View events
+  |   2. Register for an event
+  |   3. View my registrations
+  |   4. Exit
+  | Choose an option (1-4): 4
+  | Server: Goodbye
+  | Registration session closed. Goodbye, S1007.
+
+--- server log ---
+[19:55:01] Client #3 connected from 127.0.0.1:59384
+[19:55:01] Client #4 connected from 127.0.0.1:59398
+[19:55:01] Client #5 connected from 127.0.0.1:59406
+[19:55:01] Client #5: authenticated as S1006 (Felix Mugisha)
+[19:55:01] Client #6 connected from 127.0.0.1:59414
+[19:55:01] Client #3: authenticated as S1002 (Brian Otieno)
+[19:55:01] Client #7 connected from 127.0.0.1:59420
+[19:55:01] Client #8 connected from 127.0.0.1:59430
+[19:55:01] Client #7: authenticated as S1007 (Grace Wanjiru)
+[19:55:01] Client #8: authenticated as S1005 (Esther Ingabire)
+[19:55:01] Client #4: authenticated as S1003 (Chloe Mukamana)
+[19:55:01] Client #6: authenticated as S1004 (David Kamau)
+[19:55:03] S1007 REGISTERED for 102 Cybersecurity Seminar (1/4)
+[19:55:03] S1005 REGISTERED for 102 Cybersecurity Seminar (2/4)
+[19:55:03] S1006 REGISTERED for 102 Cybersecurity Seminar (3/4)
+[19:55:03] S1003 REGISTERED for 102 Cybersecurity Seminar (4/4)
+[19:55:03] S1004 rejected: 102 Cybersecurity Seminar is FULL (4/4)
+[19:55:03] S1002 rejected: 102 Cybersecurity Seminar is FULL (4/4)
+[19:55:04] Client #7 disconnected (client sent QUIT)
+[19:55:04] Client #8 disconnected (client sent QUIT)
+[19:55:04] Client #4 disconnected (client sent QUIT)
+[19:55:04] Client #6 disconnected (client sent QUIT)
+[19:55:04] Client #5 disconnected (client sent QUIT)
+[19:55:04] Client #3 disconnected (client sent QUIT)
+(connected-client list lines omitted here; see the full log at the end)
+
+##########################################################################
+# STEP 4 - Registering for an event that is already full (requirement 5)
+##########################################################################
+S1008 sees event 102 marked FULL and tries to register anyway.
+
+Connecting to 127.0.0.1:9600 ...
+Connected. University Event Registration Server - log in with: LOGIN <student_id>
+
+Enter your student ID (or 'q' to quit): S1008
+
+  [SUCCESS] Authentication successful. Welcome, Hassan Abdi (S1008)
+
+Available events:
+  ID   Event                    Capacity  Registered  Available
+  ---- ------------------------ --------  ----------  ---------
+  101  AI Workshop                     5           1          4
+  102  Cybersecurity Seminar           4           4       FULL
+  103  Research Conference             6           0          6
+
+---------------- MENU ----------------
+  1. View events
+  2. Register for an event
+  3. View my registrations
+  4. Exit
+Choose an option (1-4): 2
+
+  ID   Event                    Capacity  Registered  Available
+  ---- ------------------------ --------  ----------  ---------
+  101  AI Workshop                     5           1          4
+  102  Cybersecurity Seminar           4           4       FULL
+  103  Research Conference             6           0          6
+
+Enter the event ID to register for (0 to cancel): 102
+  [REJECTED] Event full - no places left: 102 Cybersecurity Seminar is full (4/4)
+
+---------------- MENU ----------------
+  1. View events
+  2. Register for an event
+  3. View my registrations
+  4. Exit
+Choose an option (1-4): 4
+Server: Goodbye
+Registration session closed. Goodbye, S1008.
+--- server log ---
+[19:55:04] Client #9 connected from 127.0.0.1:49852
+[19:55:04] Connected clients (1/10): [#9 127.0.0.1:49852 not logged in]
+[19:55:04] Client #9: authenticated as S1008 (Hassan Abdi)
+[19:55:04] Connected clients (1/10): [#9 127.0.0.1:49852 S1008]
+[19:55:04] S1008 rejected: 102 Cybersecurity Seminar is FULL (4/4)
+[19:55:04] Client #9 disconnected (client sent QUIT)
+[19:55:04] Connected clients (0/10): none
+
+##########################################################################
+# STEP 5 - Client disconnections                    (requirement 9)
+##########################################################################
+5a. S1009 presses Ctrl+C in the middle of the menu.
+
+  4. Exit
+Choose an option (1-4): 
+Server: Goodbye
+Registration session closed. Goodbye, S1009.
+--- server log ---
+[19:55:04] Client #10 connected from 127.0.0.1:49856
+[19:55:04] Connected clients (1/10): [#10 127.0.0.1:49856 not logged in]
+[19:55:04] Client #10: authenticated as S1009 (Irene Ishimwe)
+[19:55:04] Connected clients (1/10): [#10 127.0.0.1:49856 S1009]
+[19:55:05] Client #10 disconnected (client sent QUIT)
+[19:55:05] Connected clients (0/10): none
+
+5b. S1010's client process crashes (killed with SIGKILL) while logged
+    in - it cannot send QUIT or close the connection itself.
+
+$ kill -9 153215      (client process)
+--- server log ---
+[19:55:07] Client #11 connected from 127.0.0.1:49862
+[19:55:07] Connected clients (1/10): [#11 127.0.0.1:49862 not logged in]
+[19:55:07] Client #11: authenticated as S1010 (Joseph Kiprop)
+[19:55:07] Connected clients (1/10): [#11 127.0.0.1:49862 S1010]
+[19:55:08] Client #11 disconnected (client closed the connection)
+[19:55:08] Connected clients (0/10): none
+
+5c. The server keeps running: S1010 logs in again straight away and
+    registers for event 103.
+
+Connecting to 127.0.0.1:9600 ...
+Connected. University Event Registration Server - log in with: LOGIN <student_id>
+
+Enter your student ID (or 'q' to quit): S1010
+
+  [SUCCESS] Authentication successful. Welcome, Joseph Kiprop (S1010)
+
+Available events:
+  ID   Event                    Capacity  Registered  Available
+  ---- ------------------------ --------  ----------  ---------
+  101  AI Workshop                     5           1          4
+  102  Cybersecurity Seminar           4           4       FULL
+  103  Research Conference             6           0          6
+
+---------------- MENU ----------------
+  1. View events
+  2. Register for an event
+  3. View my registrations
+  4. Exit
+Choose an option (1-4): 2
+
+  ID   Event                    Capacity  Registered  Available
+  ---- ------------------------ --------  ----------  ---------
+  101  AI Workshop                     5           1          4
+  102  Cybersecurity Seminar           4           4       FULL
+  103  Research Conference             6           0          6
+
+Enter the event ID to register for (0 to cancel): 103
+  [SUCCESS] Registration confirmed: S1010 registered for 103 Research Conference (place 1 of 6, 5 left)
+
+---------------- MENU ----------------
+  1. View events
+  2. Register for an event
+  3. View my registrations
+  4. Exit
+Choose an option (1-4): 4
+Server: Goodbye
+Registration session closed. Goodbye, S1010.
+--- server log ---
+[19:55:09] Client #12 connected from 127.0.0.1:49866
+[19:55:09] Connected clients (1/10): [#12 127.0.0.1:49866 not logged in]
+[19:55:09] Client #12: authenticated as S1010 (Joseph Kiprop)
+[19:55:09] Connected clients (1/10): [#12 127.0.0.1:49866 S1010]
+[19:55:09] S1010 REGISTERED for 103 Research Conference (1/6)
+[19:55:09] Client #12 disconnected (client sent QUIT)
+[19:55:09] Connected clients (0/10): none
+
+##########################################################################
+# FINAL STATE - stop the server (Ctrl+C) and show its records
+##########################################################################
+--- server log ---
+[19:55:09] Shutdown requested - closing listening socket
+[19:55:09] Final registrations:
+[19:55:09]   101 AI Workshop            1/5: S1001
+[19:55:09]   102 Cybersecurity Seminar  4/4: S1007 S1005 S1006 S1003
+[19:55:09]   103 Research Conference    1/6: S1010
+[19:55:09] Server stopped
+
+##########################################################################
+# COMPLETE SERVER LOG
+##########################################################################
+[19:55:00] Server listening on port 9600 (max 10 clients)
+[19:55:00] Event 101 AI Workshop            capacity 5
+[19:55:00] Event 102 Cybersecurity Seminar  capacity 4
+[19:55:00] Event 103 Research Conference    capacity 6
+[19:55:00] Client #1 connected from 127.0.0.1:59354
+[19:55:00] Connected clients (1/10): [#1 127.0.0.1:59354 not logged in]
+[19:55:00] Client #1: login REJECTED for unknown ID 'S9999' (attempt 1/3)
+[19:55:00] Client #1: login REJECTED for unknown ID 'ABC123' (attempt 2/3)
+[19:55:00] Client #1 disconnected (client sent QUIT)
+[19:55:00] Connected clients (0/10): none
+[19:55:01] Client #2 connected from 127.0.0.1:59370
+[19:55:01] Connected clients (1/10): [#2 127.0.0.1:59370 not logged in]
+[19:55:01] Client #2: authenticated as S1001 (Amina Uwase)
+[19:55:01] Connected clients (1/10): [#2 127.0.0.1:59370 S1001]
+[19:55:01] S1001 REGISTERED for 101 AI Workshop (1/5)
+[19:55:01] S1001 DUPLICATE registration for 101 rejected
+[19:55:01] Client #2 disconnected (client sent QUIT)
+[19:55:01] Connected clients (0/10): none
+[19:55:01] Client #3 connected from 127.0.0.1:59384
+[19:55:01] Connected clients (1/10): [#3 127.0.0.1:59384 not logged in]
+[19:55:01] Client #4 connected from 127.0.0.1:59398
+[19:55:01] Connected clients (2/10): [#3 127.0.0.1:59384 not logged in] [#4 127.0.0.1:59398 not logged in]
+[19:55:01] Client #5 connected from 127.0.0.1:59406
+[19:55:01] Connected clients (3/10): [#3 127.0.0.1:59384 not logged in] [#4 127.0.0.1:59398 not logged in] [#5 127.0.0.1:59406 not logged in]
+[19:55:01] Client #5: authenticated as S1006 (Felix Mugisha)
+[19:55:01] Connected clients (3/10): [#3 127.0.0.1:59384 not logged in] [#4 127.0.0.1:59398 not logged in] [#5 127.0.0.1:59406 S1006]
+[19:55:01] Client #6 connected from 127.0.0.1:59414
+[19:55:01] Connected clients (4/10): [#3 127.0.0.1:59384 not logged in] [#4 127.0.0.1:59398 not logged in] [#5 127.0.0.1:59406 S1006] [#6 127.0.0.1:59414 not logged in]
+[19:55:01] Client #3: authenticated as S1002 (Brian Otieno)
+[19:55:01] Connected clients (4/10): [#3 127.0.0.1:59384 S1002] [#4 127.0.0.1:59398 not logged in] [#5 127.0.0.1:59406 S1006] [#6 127.0.0.1:59414 not logged in]
+[19:55:01] Client #7 connected from 127.0.0.1:59420
+[19:55:01] Connected clients (5/10): [#3 127.0.0.1:59384 S1002] [#4 127.0.0.1:59398 not logged in] [#5 127.0.0.1:59406 S1006] [#6 127.0.0.1:59414 not logged in] [#7 127.0.0.1:59420 not logged in]
+[19:55:01] Client #8 connected from 127.0.0.1:59430
+[19:55:01] Connected clients (6/10): [#3 127.0.0.1:59384 S1002] [#4 127.0.0.1:59398 not logged in] [#5 127.0.0.1:59406 S1006] [#6 127.0.0.1:59414 not logged in] [#7 127.0.0.1:59420 not logged in] [#8 127.0.0.1:59430 not logged in]
+[19:55:01] Client #7: authenticated as S1007 (Grace Wanjiru)
+[19:55:01] Connected clients (6/10): [#3 127.0.0.1:59384 S1002] [#4 127.0.0.1:59398 not logged in] [#5 127.0.0.1:59406 S1006] [#6 127.0.0.1:59414 not logged in] [#7 127.0.0.1:59420 S1007] [#8 127.0.0.1:59430 not logged in]
+[19:55:01] Client #8: authenticated as S1005 (Esther Ingabire)
+[19:55:01] Connected clients (6/10): [#3 127.0.0.1:59384 S1002] [#4 127.0.0.1:59398 not logged in] [#5 127.0.0.1:59406 S1006] [#6 127.0.0.1:59414 not logged in] [#7 127.0.0.1:59420 S1007] [#8 127.0.0.1:59430 S1005]
+[19:55:01] Client #4: authenticated as S1003 (Chloe Mukamana)
+[19:55:01] Connected clients (6/10): [#3 127.0.0.1:59384 S1002] [#4 127.0.0.1:59398 S1003] [#5 127.0.0.1:59406 S1006] [#6 127.0.0.1:59414 not logged in] [#7 127.0.0.1:59420 S1007] [#8 127.0.0.1:59430 S1005]
+[19:55:01] Client #6: authenticated as S1004 (David Kamau)
+[19:55:01] Connected clients (6/10): [#3 127.0.0.1:59384 S1002] [#4 127.0.0.1:59398 S1003] [#5 127.0.0.1:59406 S1006] [#6 127.0.0.1:59414 S1004] [#7 127.0.0.1:59420 S1007] [#8 127.0.0.1:59430 S1005]
+[19:55:03] S1007 REGISTERED for 102 Cybersecurity Seminar (1/4)
+[19:55:03] S1005 REGISTERED for 102 Cybersecurity Seminar (2/4)
+[19:55:03] S1006 REGISTERED for 102 Cybersecurity Seminar (3/4)
+[19:55:03] S1003 REGISTERED for 102 Cybersecurity Seminar (4/4)
+[19:55:03] S1004 rejected: 102 Cybersecurity Seminar is FULL (4/4)
+[19:55:03] S1002 rejected: 102 Cybersecurity Seminar is FULL (4/4)
+[19:55:04] Client #7 disconnected (client sent QUIT)
+[19:55:04] Connected clients (5/10): [#3 127.0.0.1:59384 S1002] [#4 127.0.0.1:59398 S1003] [#5 127.0.0.1:59406 S1006] [#6 127.0.0.1:59414 S1004] [#8 127.0.0.1:59430 S1005]
+[19:55:04] Client #8 disconnected (client sent QUIT)
+[19:55:04] Connected clients (4/10): [#3 127.0.0.1:59384 S1002] [#4 127.0.0.1:59398 S1003] [#5 127.0.0.1:59406 S1006] [#6 127.0.0.1:59414 S1004]
+[19:55:04] Client #4 disconnected (client sent QUIT)
+[19:55:04] Connected clients (3/10): [#3 127.0.0.1:59384 S1002] [#5 127.0.0.1:59406 S1006] [#6 127.0.0.1:59414 S1004]
+[19:55:04] Client #6 disconnected (client sent QUIT)
+[19:55:04] Connected clients (2/10): [#3 127.0.0.1:59384 S1002] [#5 127.0.0.1:59406 S1006]
+[19:55:04] Client #5 disconnected (client sent QUIT)
+[19:55:04] Connected clients (1/10): [#3 127.0.0.1:59384 S1002]
+[19:55:04] Client #3 disconnected (client sent QUIT)
+[19:55:04] Connected clients (0/10): none
+[19:55:04] Client #9 connected from 127.0.0.1:49852
+[19:55:04] Connected clients (1/10): [#9 127.0.0.1:49852 not logged in]
+[19:55:04] Client #9: authenticated as S1008 (Hassan Abdi)
+[19:55:04] Connected clients (1/10): [#9 127.0.0.1:49852 S1008]
+[19:55:04] S1008 rejected: 102 Cybersecurity Seminar is FULL (4/4)
+[19:55:04] Client #9 disconnected (client sent QUIT)
+[19:55:04] Connected clients (0/10): none
+[19:55:04] Client #10 connected from 127.0.0.1:49856
+[19:55:04] Connected clients (1/10): [#10 127.0.0.1:49856 not logged in]
+[19:55:04] Client #10: authenticated as S1009 (Irene Ishimwe)
+[19:55:04] Connected clients (1/10): [#10 127.0.0.1:49856 S1009]
+[19:55:05] Client #10 disconnected (client sent QUIT)
+[19:55:05] Connected clients (0/10): none
+[19:55:07] Client #11 connected from 127.0.0.1:49862
+[19:55:07] Connected clients (1/10): [#11 127.0.0.1:49862 not logged in]
+[19:55:07] Client #11: authenticated as S1010 (Joseph Kiprop)
+[19:55:07] Connected clients (1/10): [#11 127.0.0.1:49862 S1010]
+[19:55:08] Client #11 disconnected (client closed the connection)
+[19:55:08] Connected clients (0/10): none
+[19:55:09] Client #12 connected from 127.0.0.1:49866
+[19:55:09] Connected clients (1/10): [#12 127.0.0.1:49866 not logged in]
+[19:55:09] Client #12: authenticated as S1010 (Joseph Kiprop)
+[19:55:09] Connected clients (1/10): [#12 127.0.0.1:49866 S1010]
+[19:55:09] S1010 REGISTERED for 103 Research Conference (1/6)
+[19:55:09] Client #12 disconnected (client sent QUIT)
+[19:55:09] Connected clients (0/10): none
+[19:55:09] Shutdown requested - closing listening socket
+[19:55:09] Final registrations:
+[19:55:09]   101 AI Workshop            1/5: S1001
+[19:55:09]   102 Cybersecurity Seminar  4/4: S1007 S1005 S1006 S1003
+[19:55:09]   103 Research Conference    1/6: S1010
+[19:55:09] Server stopped
