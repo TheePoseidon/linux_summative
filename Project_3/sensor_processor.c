@@ -1,5 +1,5 @@
 /*
- * sensor_processor.c - Python C extension for filtering and analysing
+ * sensor_processor.c: Python C extension for filtering and analysing
  *                      sensor readings.
  *
  * Functions exposed to Python:
@@ -11,7 +11,6 @@
  *
  * Build:  python3 setup.py build_ext --inplace
  *
- * ---------------------------------------------------------------------------
  * Input rules (shared by all functions)
  *   - data must be a list or tuple; anything else raises TypeError.
  *   - Each reading must be an int or a float (subclasses allowed, bool is
@@ -22,7 +21,6 @@
  *     (both have a natural answer); moving_average, maximum_difference and
  *     sensor_summary raise ValueError (no meaningful result exists).
  *
- * ---------------------------------------------------------------------------
  * How Python objects are accessed (no copying)
  *   A list or tuple stores its elements as a C array of PyObject pointers.
  *   PySequence_Fast_ITEMS() returns that array directly, so the code reads
@@ -54,11 +52,11 @@
  *     readings need a new float object.
  *
  * Time complexity (n = number of readings, w = window size)
- *   filter_readings      O(n) time  - two passes (count, then fill)
- *   count_outliers       O(n) time  - one pass
- *   moving_average       O(n) time  - sliding window sum (not O(n*w))
- *   maximum_difference   O(n) time  - one pass
- *   sensor_summary       O(n) time  - two passes (stats, then above-mean)
+ *   filter_readings      O(n) time, two passes (count, then fill)
+ *   count_outliers       O(n) time, one pass
+ *   moving_average       O(n) time, sliding window sum (not O(n*w))
+ *   maximum_difference   O(n) time, one pass
+ *   sensor_summary       O(n) time, two passes (stats, then above-mean)
  *   Extra memory is O(1) apart from the returned result objects.
  *
  * Numerical accuracy
@@ -73,12 +71,12 @@
 #include <Python.h>
 #include <math.h>
 
-/* ========================================================================
+/*
  * Helper functions
- * ===================================================================== */
+ */
 
 /*
- * get_items - check that data is a list or tuple and expose its elements.
+ * get_items: check that data is a list or tuple and expose its elements.
  *   On success stores the borrowed element array in *items and the length
  *   in *n, and returns 0. Otherwise sets TypeError and returns -1.
  *   PySequence_Fast_ITEMS accepts a list or tuple directly, so no
@@ -99,7 +97,7 @@ get_items(PyObject *data, PyObject ***items, Py_ssize_t *n)
 }
 
 /*
- * to_double - convert one reading to a finite C double.
+ * to_double: convert one reading to a finite C double.
  *   Returns 0 on success, -1 with an exception set on failure.
  */
 static int
@@ -133,7 +131,7 @@ to_double(PyObject *item, Py_ssize_t index, double *out)
 }
 
 /*
- * check_range - validate the minimum/maximum arguments.
+ * check_range: validate the minimum/maximum arguments.
  *   Both must be finite and minimum <= maximum (equal is allowed: a range
  *   containing exactly one value).
  */
@@ -198,7 +196,7 @@ check_result(double value, const char *what)
     return 0;
 }
 
-/* ========================================================================
+/*
  * 1. filter_readings(data, minimum, maximum)
  *    Keeps readings x with minimum <= x <= maximum.
  *    Pass 1 validates every reading and counts the matches; pass 2 creates
@@ -206,7 +204,7 @@ check_result(double value, const char *what)
  *    no result is built for invalid input, and the list is never resized.
  *    Matching float objects are shared rather than copied.
  *    Time O(n), extra memory O(1) besides the result.
- * ===================================================================== */
+ */
 PyDoc_STRVAR(filter_readings_doc,
 "filter_readings(data, minimum, maximum) -> list\n\n"
 "Return a new list of the readings within [minimum, maximum] (inclusive),\n"
@@ -265,12 +263,12 @@ filter_readings(PyObject *Py_UNUSED(self), PyObject *args)
     return result;                               /* ownership to caller */
 }
 
-/* ========================================================================
+/*
  * 2. count_outliers(data, minimum, maximum)
  *    Counts readings x with x < minimum or x > maximum, i.e.
  *    outliers = n - (number of readings inside the range).
  *    Time O(n), extra memory O(1).
- * ===================================================================== */
+ */
 PyDoc_STRVAR(count_outliers_doc,
 "count_outliers(data, minimum, maximum) -> int\n\n"
 "Return how many readings fall outside [minimum, maximum].");
@@ -297,7 +295,7 @@ count_outliers(PyObject *Py_UNUSED(self), PyObject *args)
     return PyLong_FromSsize_t(outliers);         /* new reference */
 }
 
-/* ========================================================================
+/*
  * 3. moving_average(data, window)
  *    For each position k = 0 .. n-w:
  *        avg[k] = (x[k] + x[k+1] + ... + x[k+w-1]) / w
@@ -312,7 +310,7 @@ count_outliers(PyObject *Py_UNUSED(self), PyObject *args)
  *    does not accumulate rounding drift.
  *    Readings are converted on demand from the input container instead of
  *    being copied into a temporary C array, so no buffer is allocated.
- * ===================================================================== */
+ */
 PyDoc_STRVAR(moving_average_doc,
 "moving_average(data, window) -> list\n\n"
 "Return the averages of every run of `window` consecutive readings\n"
@@ -393,11 +391,11 @@ error:
     return NULL;
 }
 
-/* ========================================================================
+/*
  * 4. maximum_difference(data)
  *    range = max(x) - min(x), found in a single pass that updates both the
  *    running minimum and maximum. Time O(n), extra memory O(1).
- * ===================================================================== */
+ */
 PyDoc_STRVAR(maximum_difference_doc,
 "maximum_difference(data) -> float\n\n"
 "Return max(data) - min(data).");
@@ -435,14 +433,14 @@ maximum_difference(PyObject *Py_UNUSED(self), PyObject *args)
     return PyFloat_FromDouble(diff);
 }
 
-/* ========================================================================
+/*
  * 5. sensor_summary(data)
  *    Pass 1: n, minimum, maximum and the compensated sum.
  *            mean = (x[0] + ... + x[n-1]) / n
  *    Pass 2: count readings strictly greater than the mean (the mean is
  *            only known after pass 1, so a second pass is required).
  *    Time O(n) (2n steps), extra memory O(1).
- * ===================================================================== */
+ */
 PyDoc_STRVAR(sensor_summary_doc,
 "sensor_summary(data) -> dict\n\n"
 "Return {'samples', 'minimum', 'maximum', 'average', 'above_average'}.\n"
@@ -501,10 +499,10 @@ sensor_summary(PyObject *Py_UNUSED(self), PyObject *args)
                          "above_average", above);
 }
 
-/* ========================================================================
+/*
  * Method table: maps each Python name to its C function. METH_VARARGS
  * means the arguments arrive as a tuple, unpacked with PyArg_ParseTuple.
- * ===================================================================== */
+ */
 static PyMethodDef SensorProcessorMethods[] = {
     {"filter_readings",    filter_readings,    METH_VARARGS,
      filter_readings_doc},
@@ -519,9 +517,9 @@ static PyMethodDef SensorProcessorMethods[] = {
     {NULL, NULL, 0, NULL}                        /* sentinel */
 };
 
-/* ========================================================================
+/*
  * Module definition
- * ===================================================================== */
+ */
 PyDoc_STRVAR(module_doc,
 "Fast filtering and statistics for sensor readings, implemented in C.");
 
@@ -534,10 +532,10 @@ static struct PyModuleDef sensor_processor_module = {
     NULL, NULL, NULL, NULL   /* slots, traverse, clear, free: unused */
 };
 
-/* ========================================================================
+/*
  * Module initialisation: called by "import sensor_processor".
  * The name must be PyInit_<module name>.
- * ===================================================================== */
+ */
 PyMODINIT_FUNC
 PyInit_sensor_processor(void)
 {

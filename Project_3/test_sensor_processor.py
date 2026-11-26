@@ -1,12 +1,3 @@
-"""
-test_sensor_processor.py - demonstrates and tests the sensor_processor
-C extension.
-
-Run after building:
-    python3 setup.py build_ext --inplace
-    python3 test_sensor_processor.py
-"""
-
 import math
 import sys
 
@@ -24,7 +15,6 @@ def heading(title):
 
 
 def check(call_text, result, expected):
-    """Print a call and its result, and compare with the expected value."""
     global passed, failed
     ok = result == expected
     passed += ok
@@ -33,19 +23,17 @@ def check(call_text, result, expected):
 
 
 def show(call_text, result):
-    """Print a call and its result (no fixed expected value)."""
     print(f"{call_text}\n    -> {result!r}")
 
 
 def expect_error(call_text, func, *args, error=Exception):
-    """Call func and confirm it raises the expected exception type."""
     global passed, failed
     try:
         result = func(*args)
     except error as exc:
         passed += 1
         print(f"{call_text}\n    -> {type(exc).__name__}: {exc}    [PASS]")
-    except Exception as exc:  # wrong exception type
+    except Exception as exc:
         failed += 1
         print(f"{call_text}\n    -> {type(exc).__name__}: {exc}    "
               f"[FAIL - expected {error.__name__}]")
@@ -55,7 +43,6 @@ def expect_error(call_text, func, *args, error=Exception):
               f"[FAIL - expected {error.__name__}]")
 
 
-# ---------------------------------------------------------------------------
 heading("1. Examples from the assignment brief")
 
 check("filter_readings([10.5, 25.0, 110.0, 35.5], 20.0, 40.0)",
@@ -75,10 +62,8 @@ check("sensor_summary([10.0, 20.0, 30.0, 40.0])",
       {"samples": 4, "minimum": 10.0, "maximum": 40.0,
        "average": 25.0, "above_average": 2})
 
-# ---------------------------------------------------------------------------
 heading("2. Sample data: greenhouse temperatures (deg C), range 15-35")
 
-# Twelve readings from one sensor; -40.0 and 85.0 are sensor faults.
 temperatures = [21.4, 22.0, 23.5, -40.0, 24.8, 26.1,
                 27.3, 85.0, 25.9, 24.2, 22.7, 21.8]
 print(f"temperatures = {temperatures}\n")
@@ -98,7 +83,6 @@ print("\nCleaned data (outliers removed first):")
 clean = sp.filter_readings(temperatures, 15.0, 35.0)
 show("sensor_summary(clean)", sp.sensor_summary(clean))
 
-# ---------------------------------------------------------------------------
 heading("3. Other accepted inputs")
 
 check("filter_readings((5, 15, 25), 10, 30)      # tuple of ints",
@@ -114,7 +98,6 @@ check("sensor_summary([7.5])                     # single reading",
       {"samples": 1, "minimum": 7.5, "maximum": 7.5,
        "average": 7.5, "above_average": 0})
 
-# ---------------------------------------------------------------------------
 heading("4. Empty input")
 
 check("filter_readings([], 0.0, 100.0)", sp.filter_readings([], 0.0, 100.0), [])
@@ -126,16 +109,13 @@ expect_error("maximum_difference([])",
 expect_error("sensor_summary([])",
              sp.sensor_summary, [], error=ValueError)
 
-# ---------------------------------------------------------------------------
 heading("5. Invalid input")
 
-# Unsupported container types
 expect_error('filter_readings("25,30", 0, 50)        # string, not a list',
              sp.filter_readings, "25,30", 0, 50, error=TypeError)
 expect_error("sensor_summary({1.0, 2.0})              # set, not a list",
              sp.sensor_summary, {1.0, 2.0}, error=TypeError)
 
-# Unsupported readings
 expect_error('count_outliers([25.0, "hot", 30.0], 0, 50)',
              sp.count_outliers, [25.0, "hot", 30.0], 0, 50, error=TypeError)
 expect_error("maximum_difference([10.0, None])",
@@ -147,7 +127,6 @@ expect_error("sensor_summary([1.0, math.nan])",
 expect_error("maximum_difference([1.0, math.inf])",
              sp.maximum_difference, [1.0, math.inf], error=ValueError)
 
-# Invalid range arguments
 expect_error("filter_readings([1.0, 2.0], 40.0, 20.0)  # minimum > maximum",
              sp.filter_readings, [1.0, 2.0], 40.0, 20.0, error=ValueError)
 expect_error('count_outliers([1.0], "low", 20.0)      # non-numeric bound',
@@ -155,7 +134,6 @@ expect_error('count_outliers([1.0], "low", 20.0)      # non-numeric bound',
 expect_error("filter_readings([1.0], math.nan, 20.0)  # NaN bound",
              sp.filter_readings, [1.0], math.nan, 20.0, error=ValueError)
 
-# Invalid moving-average windows
 expect_error("moving_average([1.0, 2.0, 3.0], 0)",
              sp.moving_average, [1.0, 2.0, 3.0], 0, error=ValueError)
 expect_error("moving_average([1.0, 2.0, 3.0], -2)",
@@ -165,11 +143,9 @@ expect_error("moving_average([1.0, 2.0, 3.0], 4)      # window > length",
 expect_error("moving_average([1.0, 2.0, 3.0], 2.5)    # not an int",
              sp.moving_average, [1.0, 2.0, 3.0], 2.5, error=TypeError)
 
-# Wrong number of arguments
 expect_error("sensor_summary()",
              sp.sensor_summary, error=TypeError)
 
-# ---------------------------------------------------------------------------
 heading("Result")
 print(f"{passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)

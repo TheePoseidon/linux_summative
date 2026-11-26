@@ -1,20 +1,10 @@
-"""
-Build configuration for the sensor_processor C extension.
-
-Build in place (creates sensor_processor.*.so next to this file):
-    python3 setup.py build_ext --inplace
-
-Or install into the current environment:
-    python3 -m pip install .
-"""
-
 from setuptools import Extension, setup
 
 sensor_processor = Extension(
     name="sensor_processor",
     sources=["sensor_processor.c"],
     extra_compile_args=["-O2", "-Wall", "-Wextra"],
-    libraries=["m"],                 # C math library (fabs, isfinite)
+    libraries=["m"],
 )
 
 setup(
