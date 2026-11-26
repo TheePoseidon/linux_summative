@@ -1,5 +1,5 @@
 /*
- * server.c - University event registration server (TCP, POSIX threads)
+ * server.c: University event registration server (TCP, POSIX threads)
  *
  * Build:  gcc -Wall -Wextra -pthread -o server server.c
  * Run:    ./server [port]          (default port 8080; Ctrl+C to stop)
@@ -9,7 +9,6 @@
  *           3. Concurrency approach    7. Unexpected disconnections
  *           4. Shared resource protection   (+ shutdown, test hooks)
  *
- * ===========================================================================
  * 1. TCP COMMUNICATION
  *   Connection set-up (main):
  *     socket(AF_INET, SOCK_STREAM)  create a TCP socket
@@ -125,11 +124,10 @@
  *   connection close and exit), waits on clients_cv until no clients
  *   remain, prints the final registrations and destroys all mutexes.
  *
- * TEST HOOKS (off in the normal build; used by test_concurrency.py)
+ * TEST HOOKS (off in the normal build; used for concurrency testing)
  *   -DREG_DELAY_US=n   pause inside the registration critical section
  *   -DUNSAFE_NO_LOCK   build without the event mutex (race demonstration)
  *   -DIDLE_TIMEOUT_SEC=n  shorter idle timeout
- * ===========================================================================
  */
 
 #define _POSIX_C_SOURCE 200809L
@@ -167,7 +165,7 @@
 #endif
 #define SEND_TIMEOUT_SEC    10
 
-/* ---- Test hooks for the Part C concurrency tests (OFF by default) ----
+/* Test hooks for the Part C concurrency tests (OFF by default)
  * REG_DELAY_US    pause inside the registration critical section, between
  *                 the capacity check and the update, to widen the race
  *                 window so simultaneous requests really overlap.
@@ -184,9 +182,7 @@
 #define EVENT_UNLOCK(ev) pthread_mutex_unlock(&(ev)->lock)
 #endif
 
-/* ------------------------------------------------------------------------
- * Registered students (read-only)
- * --------------------------------------------------------------------- */
+/* Registered students (read-only) */
 typedef struct {
     const char *id;
     const char *name;
@@ -201,9 +197,7 @@ static const Student students[] = {
 };
 #define NUM_STUDENTS ((int)(sizeof students / sizeof students[0]))
 
-/* ------------------------------------------------------------------------
- * Events (shared, one mutex per event)
- * --------------------------------------------------------------------- */
+/* Events (shared, one mutex per event) */
 typedef struct {
     int             id;
     const char     *name;
@@ -220,9 +214,7 @@ static Event events[] = {
 };
 #define NUM_EVENTS ((int)(sizeof events / sizeof events[0]))
 
-/* ------------------------------------------------------------------------
- * Connected clients (shared, protected by clients_lock)
- * --------------------------------------------------------------------- */
+/* Connected clients (shared, protected by clients_lock) */
 typedef struct {
     int  in_use;
     int  fd;
@@ -239,10 +231,10 @@ static pthread_cond_t  clients_cv   = PTHREAD_COND_INITIALIZER;
 
 static volatile sig_atomic_t stop_requested;    /* set by SIGINT/SIGTERM */
 
-/* ========================================================================
- * Logging - one complete line per fputs call, so lines from different
+/*
+ * Logging: one complete line per fputs call, so lines from different
  * threads never interleave.
- * ===================================================================== */
+ */
 static void log_msg(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 static void log_msg(const char *fmt, ...)
 {
@@ -280,9 +272,7 @@ static void log_client_list(void)
     log_msg("%s", buf);
 }
 
-/* ========================================================================
- * Socket helpers
- * ===================================================================== */
+/* Socket helpers */
 
 /* Send the whole buffer. send() may write only part of it, so loop.
  * MSG_NOSIGNAL: if the client has gone, return an error instead of
@@ -369,9 +359,7 @@ static int read_line(LineReader *r, char *out, size_t out_size)
     }
 }
 
-/* ========================================================================
- * Lookups (read-only data, or immutable event fields: no lock needed)
- * ===================================================================== */
+/* Lookups (read-only data, or immutable event fields: no lock needed) */
 static int find_student(const char *id)
 {
     for (int i = 0; i < NUM_STUDENTS; i++)
@@ -388,10 +376,10 @@ static Event *find_event(int id)
     return NULL;
 }
 
-/* ========================================================================
+/*
  * Request handlers. Each sends its data lines and ONE status line.
  * Return -1 if the connection should be closed.
- * ===================================================================== */
+ */
 
 /* Send one EVENT line per event. Each event's counter is copied while
  * holding that event's lock; the socket write happens after unlocking. */
@@ -438,7 +426,7 @@ static int handle_login(int fd, int slot, int *student, int *failed,
     }
 
     /* Check that this student is not logged in on another connection and
-     * mark this connection as theirs - in ONE critical section, so two
+     * mark this connection as theirs, in ONE critical section, so two
      * simultaneous logins with the same ID cannot both succeed. */
     pthread_mutex_lock(&clients_lock);
     int in_use = 0;
@@ -483,7 +471,7 @@ static int handle_register(int fd, int student, const char *arg)
     if (ev == NULL)
         return send_line(fd, "ERR NO_SUCH_EVENT Event %ld does not exist", id);
 
-    /* ---- Critical section: duplicate check, capacity check and update
+    /* Critical section: duplicate check, capacity check and update
      * happen atomically under the event's lock. While one thread is here,
      * any other thread registering for THIS event waits at the lock, so the
      * last place can only be given to one student. */
@@ -508,7 +496,7 @@ static int handle_register(int fd, int student, const char *arg)
     }
     registered = ev->registered;
     EVENT_UNLOCK(ev);
-    /* ---- End of critical section; reply is sent without the lock. */
+    /* End of critical section; reply is sent without the lock. */
 
     switch (result) {
     case REGISTERED:
@@ -568,9 +556,7 @@ static int handle_help(int fd)
     return send_line(fd, "OK HELP");
 }
 
-/* ========================================================================
- * Client thread - one per connected client
- * ===================================================================== */
+/* Client thread: one per connected client */
 static void *client_thread(void *arg)
 {
     int slot = (int)(intptr_t)arg;
@@ -672,9 +658,7 @@ static void *client_thread(void *arg)
     return NULL;
 }
 
-/* ========================================================================
- * main - listening socket and accept loop
- * ===================================================================== */
+/* main: listening socket and accept loop */
 static void on_signal(int sig)
 {
     (void)sig;
@@ -810,7 +794,7 @@ int main(int argc, char *argv[])
         pthread_detach(tid);    /* resources freed automatically on exit */
     }
 
-    /* ---- Graceful shutdown ---- */
+    /* Graceful shutdown */
     log_msg("Shutdown requested - closing listening socket");
     close(listen_fd);
 

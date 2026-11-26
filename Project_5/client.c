@@ -1,10 +1,9 @@
 /*
- * client.c - Student client for the university event registration server
+ * client.c: Student client for the university event registration server
  *
  * Build:  gcc -Wall -Wextra -o client client.c
  * Run:    ./client [host] [port]        (defaults: 127.0.0.1 8080)
  *
- * ===========================================================================
  * 1. SERVER CONNECTION  (connect_to_server, main)
  *   getaddrinfo() turns the host and port into socket addresses (accepts
  *   names such as "localhost" or IP addresses, IPv4 or IPv6). The client
@@ -57,7 +56,6 @@
  *   Ctrl+C only sets a flag in its handler; the interrupted input read
  *   returns and the normal exit path runs. If the server closes the
  *   connection, the client reports it and exits with status 1.
- * ===========================================================================
  */
 
 #define _POSIX_C_SOURCE 200809L
@@ -76,9 +74,7 @@
 #define MAX_LINE     512
 #define MAX_REPLY    32             /* max lines in one server reply */
 
-/* ------------------------------------------------------------------------
- * Connection state
- * --------------------------------------------------------------------- */
+/* Connection state */
 typedef struct {
     int    fd;
     char   buf[2048];               /* bytes received but not yet used */
@@ -103,9 +99,7 @@ static void on_sigint(int sig)
     interrupted = 1;
 }
 
-/* ========================================================================
- * Network helpers
- * ===================================================================== */
+/* Network helpers */
 
 /* Resolve host/port and connect. getaddrinfo() accepts names such as
  * "localhost" as well as IP addresses. Returns the socket or -1. */
@@ -229,9 +223,7 @@ static int request(Connection *c, Reply *r, const char *command,
     return read_reply(c, r);
 }
 
-/* ========================================================================
- * User input
- * ===================================================================== */
+/* User input */
 
 /* Print a prompt and read one line from the keyboard. Returns 0, or -1 on
  * Ctrl+D (end of input) or Ctrl+C. Surrounding spaces are removed. */
@@ -256,9 +248,7 @@ static int prompt(const char *text, char *out, size_t size)
     return 0;
 }
 
-/* ========================================================================
- * Display helpers
- * ===================================================================== */
+/* Display helpers */
 
 /* Print the EVENT lines of a reply as a table. */
 static void show_events(const Reply *r)
@@ -302,9 +292,7 @@ static void show_registration_result(const Reply *r, const char *event_id)
         printf("  [ERROR] %s\n", r->text);
 }
 
-/* ========================================================================
- * Session steps
- * ===================================================================== */
+/* Session steps */
 
 /* Authentication loop. Returns 1 when logged in (ID copied to student_id),
  * 0 if the user quit, -1 if the server closed the connection. */
@@ -434,9 +422,7 @@ static int menu(Connection *c)
     }
 }
 
-/* ========================================================================
- * main
- * ===================================================================== */
+/* main */
 int main(int argc, char *argv[])
 {
     const char *host = argc > 1 ? argv[1] : DEFAULT_HOST;
