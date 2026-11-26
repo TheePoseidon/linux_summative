@@ -1,0 +1,100 @@
+======================================================================
+1. Examples from the assignment brief
+======================================================================
+filter_readings([10.5, 25.0, 110.0, 35.5], 20.0, 40.0)
+    -> [25.0, 35.5]    [PASS]
+count_outliers([10.5, 25.0, 110.0, 35.5], 20.0, 40.0)
+    -> 2    [PASS]
+moving_average([10.0, 20.0, 30.0, 40.0], 2)
+    -> [15.0, 25.0, 35.0]    [PASS]
+maximum_difference([10.0, 25.0, 40.0, 15.0])
+    -> 30.0    [PASS]
+sensor_summary([10.0, 20.0, 30.0, 40.0])
+    -> {'samples': 4, 'minimum': 10.0, 'maximum': 40.0, 'average': 25.0, 'above_average': 2}    [PASS]
+
+======================================================================
+2. Sample data: greenhouse temperatures (deg C), range 15-35
+======================================================================
+temperatures = [21.4, 22.0, 23.5, -40.0, 24.8, 26.1, 27.3, 85.0, 25.9, 24.2, 22.7, 21.8]
+
+filter_readings(temperatures, 15.0, 35.0)
+    -> [21.4, 22.0, 23.5, 24.8, 26.1, 27.3, 25.9, 24.2, 22.7, 21.8]
+count_outliers(temperatures, 15.0, 35.0)
+    -> 2
+moving_average(temperatures, 3)
+    -> [22.3, 1.833, 2.767, 3.633, 26.067, 46.133, 46.067, 45.033, 24.267, 22.9]
+maximum_difference(temperatures)
+    -> 125.0
+sensor_summary(temperatures)
+    -> {'samples': 12, 'minimum': -40.0, 'maximum': 85.0, 'average': 23.724999999999998, 'above_average': 6}
+
+Cleaned data (outliers removed first):
+sensor_summary(clean)
+    -> {'samples': 10, 'minimum': 21.4, 'maximum': 27.3, 'average': 23.97, 'above_average': 5}
+
+======================================================================
+3. Other accepted inputs
+======================================================================
+filter_readings((5, 15, 25), 10, 30)      # tuple of ints
+    -> [15.0, 25.0]    [PASS]
+count_outliers([20.0, 30.0], 20.0, 30.0)  # bounds are inclusive
+    -> 0    [PASS]
+moving_average([4.0, 8.0], 1)             # window 1 = copy
+    -> [4.0, 8.0]    [PASS]
+moving_average([4.0, 8.0], 2)             # window = length
+    -> [6.0]    [PASS]
+sensor_summary([7.5])                     # single reading
+    -> {'samples': 1, 'minimum': 7.5, 'maximum': 7.5, 'average': 7.5, 'above_average': 0}    [PASS]
+
+======================================================================
+4. Empty input
+======================================================================
+filter_readings([], 0.0, 100.0)
+    -> []    [PASS]
+count_outliers((), 0.0, 100.0)
+    -> 0    [PASS]
+moving_average([], 1)
+    -> ValueError: moving_average() requires at least one reading    [PASS]
+maximum_difference([])
+    -> ValueError: maximum_difference() requires at least one reading    [PASS]
+sensor_summary([])
+    -> ValueError: sensor_summary() requires at least one reading    [PASS]
+
+======================================================================
+5. Invalid input
+======================================================================
+filter_readings("25,30", 0, 50)        # string, not a list
+    -> TypeError: data must be a list or tuple, not str    [PASS]
+sensor_summary({1.0, 2.0})              # set, not a list
+    -> TypeError: data must be a list or tuple, not set    [PASS]
+count_outliers([25.0, "hot", 30.0], 0, 50)
+    -> TypeError: data[1] must be an int or float, not str    [PASS]
+maximum_difference([10.0, None])
+    -> TypeError: data[1] must be an int or float, not NoneType    [PASS]
+sensor_summary([1.0, True])            # bool rejected
+    -> TypeError: data[1] must be an int or float, not bool    [PASS]
+sensor_summary([1.0, math.nan])
+    -> ValueError: data[1] is not a finite number (NaN or infinity)    [PASS]
+maximum_difference([1.0, math.inf])
+    -> ValueError: data[1] is not a finite number (NaN or infinity)    [PASS]
+filter_readings([1.0, 2.0], 40.0, 20.0)  # minimum > maximum
+    -> ValueError: minimum (40) must not be greater than maximum (20)    [PASS]
+count_outliers([1.0], "low", 20.0)      # non-numeric bound
+    -> TypeError: must be real number, not str    [PASS]
+filter_readings([1.0], math.nan, 20.0)  # NaN bound
+    -> ValueError: minimum and maximum must be finite numbers    [PASS]
+moving_average([1.0, 2.0, 3.0], 0)
+    -> ValueError: window must be between 1 and 3 (number of readings), got 0    [PASS]
+moving_average([1.0, 2.0, 3.0], -2)
+    -> ValueError: window must be between 1 and 3 (number of readings), got -2    [PASS]
+moving_average([1.0, 2.0, 3.0], 4)      # window > length
+    -> ValueError: window must be between 1 and 3 (number of readings), got 4    [PASS]
+moving_average([1.0, 2.0, 3.0], 2.5)    # not an int
+    -> TypeError: window must be an int, not float    [PASS]
+sensor_summary()
+    -> TypeError: sensor_summary() takes exactly 1 argument (0 given)    [PASS]
+
+======================================================================
+Result
+======================================================================
+30 passed, 0 failed
