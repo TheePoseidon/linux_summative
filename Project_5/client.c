@@ -1,63 +1,3 @@
-/*
- * client.c: Student client for the university event registration server
- *
- * Build:  gcc -Wall -Wextra -o client client.c
- * Run:    ./client [host] [port]        (defaults: 127.0.0.1 8080)
- *
- * 1. SERVER CONNECTION  (connect_to_server, main)
- *   getaddrinfo() turns the host and port into socket addresses (accepts
- *   names such as "localhost" or IP addresses, IPv4 or IPv6). The client
- *   tries each address with socket(SOCK_STREAM) + connect() until one
- *   works, then reads the server's first line: "OK WELCOME ..." or
- *   "ERR SERVER_FULL" if the server has no free slot.
- *
- * 2. TCP COMMUNICATION  (send_command, read_line, read_reply)
- *   Messages are text lines ending in "\n" (protocol in server.c).
- *   - send_command() sends "<COMMAND> <argument>\n", looping because
- *     send() may write only part of the data.
- *   - TCP delivers a byte stream, so read_line() buffers received bytes
- *     and returns one complete line at a time.
- *   - Every server reply ends with exactly one status line starting with
- *     "OK <CODE>" or "ERR <CODE>". read_reply() collects lines until it
- *     sees one and splits it into ok/error, CODE and message text.
- *
- * 3. STUDENT AUTHENTICATION  (authenticate)
- *   Asks for the student ID, sends "LOGIN <id>" and shows the result:
- *     OK LOGIN               "Authentication successful" + welcome text
- *     ERR AUTH_FAILED        reason shown, student may try again
- *     ERR IN_USE             ID already logged in elsewhere, try again
- *     ERR TOO_MANY_ATTEMPTS  server disconnects; the client exits
- *   After a successful login the event list the server sends is shown.
- *
- * 4. EVENT SELECTION  (show_events, register_for_event, menu)
- *   Menu: 1 view events, 2 register, 3 my registrations, 4 exit.
- *   EVENT|id|name|capacity|registered|available lines are printed as a
- *   table; events with no places left show "FULL". Option 2 fetches a
- *   fresh list, then asks for an event ID (0 cancels). Input that is not
- *   a number is rejected before anything is sent.
- *
- * 5. REGISTRATION REQUESTS  (register_for_event)
- *   Sends "REGISTER <event_id>". The client does not decide whether a
- *   place is free: other students may take places at any moment, so only
- *   the server, holding the event's lock, can decide correctly.
- *
- * 6. RESPONSE PROCESSING  (read_reply, show_registration_result)
- *   The status CODE selects the message shown to the student:
- *     OK REGISTERED      [SUCCESS]  Registration confirmed
- *     ERR DUPLICATE      [REJECTED] Duplicate registration
- *     ERR EVENT_FULL     [REJECTED] Event full - no places left
- *     ERR NO_SUCH_EVENT  [REJECTED] Event <id> is not available
- *     other ERR          [ERROR]    server's message
- *
- * 7. CLOSING THE SESSION  (main)
- *   Menu option 4, Ctrl+D (end of input) or Ctrl+C all lead to the same
- *   exit: send "QUIT", wait for "OK BYE", shutdown() and close() the
- *   socket, and print "Registration session closed. Goodbye, <ID>."
- *   Ctrl+C only sets a flag in its handler; the interrupted input read
- *   returns and the normal exit path runs. If the server closes the
- *   connection, the client reports it and exits with status 1.
- */
-
 #define _POSIX_C_SOURCE 200809L
 
 #include <errno.h>
@@ -72,26 +12,24 @@
 #define DEFAULT_HOST "127.0.0.1"
 #define DEFAULT_PORT "8080"
 #define MAX_LINE     512
-#define MAX_REPLY    32             /* max lines in one server reply */
+#define MAX_REPLY    32
 
-/* Connection state */
 typedef struct {
     int    fd;
-    char   buf[2048];               /* bytes received but not yet used */
+    char   buf[2048];
     size_t len;
 } Connection;
 
-/* One server reply: data lines + final status line. */
 typedef struct {
     char lines[MAX_REPLY][MAX_LINE];
     int  count;
-    int  ok;                        /* 1 = "OK ...", 0 = "ERR ..." */
-    char code[32];                  /* e.g. "REGISTERED", "EVENT_FULL" */
-    const char *text;               /* status text after the code */
+    int  ok;
+    char code[32];
+    const char *text;
 } Reply;
 
-static volatile sig_atomic_t interrupted;   /* set by Ctrl+C */
-static int echo_input;                      /* echo input if not a terminal */
+static volatile sig_atomic_t interrupted;
+static int echo_input;
 
 static void on_sigint(int sig)
 {
@@ -99,15 +37,11 @@ static void on_sigint(int sig)
     interrupted = 1;
 }
 
-/* Network helpers */
-
-/* Resolve host/port and connect. getaddrinfo() accepts names such as
- * "localhost" as well as IP addresses. Returns the socket or -1. */
 static int connect_to_server(const char *host, const char *port)
 {
     struct addrinfo hints = {0}, *res, *ai;
-    hints.ai_family = AF_UNSPEC;            /* IPv4 or IPv6 */
-    hints.ai_socktype = SOCK_STREAM;        /* TCP */
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
 
     int rc = getaddrinfo(host, port, &hints, &res);
     if (rc != 0) {
@@ -115,7 +49,7 @@ static int connect_to_server(const char *host, const char *port)
         return -1;
     }
     int fd = -1;
-    for (ai = res; ai != NULL; ai = ai->ai_next) {   /* try each address */
+    for (ai = res; ai != NULL; ai = ai->ai_next) {
         fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
         if (fd < 0)
             continue;
@@ -128,8 +62,6 @@ static int connect_to_server(const char *host, const char *port)
     return fd;
 }
 
-/* Send "<command>" or "<command> <arg>" as one line. Loops because send()
- * may write only part of the data. */
 static int send_command(Connection *c, const char *command, const char *arg)
 {
     char line[MAX_LINE];
@@ -153,8 +85,6 @@ static int send_command(Connection *c, const char *command, const char *arg)
     return 0;
 }
 
-/* Read one line from the server. TCP delivers a byte stream, so bytes are
- * buffered until a newline arrives. Returns 1 = line, 0 = closed, -1 = error */
 static int read_line(Connection *c, char *out, size_t size)
 {
     for (;;) {
@@ -170,7 +100,7 @@ static int read_line(Connection *c, char *out, size_t size)
             c->len -= n + 1;
             return 1;
         }
-        if (c->len == sizeof c->buf)        /* over-long line: drop it */
+        if (c->len == sizeof c->buf)
             c->len = 0;
         ssize_t got = recv(c->fd, c->buf + c->len, sizeof c->buf - c->len, 0);
         if (got == 0)
@@ -184,9 +114,6 @@ static int read_line(Connection *c, char *out, size_t size)
     }
 }
 
-/* Read a full reply: lines until one starts with "OK " or "ERR ".
- * The status line is split into ok flag, code and text.
- * Returns 0 on success, -1 if the connection closed or failed. */
 static int read_reply(Connection *c, Reply *r)
 {
     r->count = 0;
@@ -214,7 +141,6 @@ static int read_reply(Connection *c, Reply *r)
     }
 }
 
-/* Send a command and wait for its reply. */
 static int request(Connection *c, Reply *r, const char *command,
                    const char *arg)
 {
@@ -223,10 +149,6 @@ static int request(Connection *c, Reply *r, const char *command,
     return read_reply(c, r);
 }
 
-/* User input */
-
-/* Print a prompt and read one line from the keyboard. Returns 0, or -1 on
- * Ctrl+D (end of input) or Ctrl+C. Surrounding spaces are removed. */
 static int prompt(const char *text, char *out, size_t size)
 {
     printf("%s", text);
@@ -243,14 +165,11 @@ static int prompt(const char *text, char *out, size_t size)
     size_t n = strlen(out);
     while (n > 0 && (out[n - 1] == ' ' || out[n - 1] == '\t'))
         out[--n] = '\0';
-    if (echo_input)                 /* make piped input visible in output */
+    if (echo_input)
         printf("%s\n", out);
     return 0;
 }
 
-/* Display helpers */
-
-/* Print the EVENT lines of a reply as a table. */
 static void show_events(const Reply *r)
 {
     printf("\n  %-4s %-24s %8s %11s %10s\n", "ID", "Event", "Capacity",
@@ -276,7 +195,6 @@ static void show_events(const Reply *r)
     printf("\n");
 }
 
-/* Print the result of a REGISTER request in plain language. */
 static void show_registration_result(const Reply *r, const char *event_id)
 {
     if (r->ok)
@@ -292,10 +210,6 @@ static void show_registration_result(const Reply *r, const char *event_id)
         printf("  [ERROR] %s\n", r->text);
 }
 
-/* Session steps */
-
-/* Authentication loop. Returns 1 when logged in (ID copied to student_id),
- * 0 if the user quit, -1 if the server closed the connection. */
 static int authenticate(Connection *c, char *student_id, size_t size)
 {
     Reply r;
@@ -313,19 +227,17 @@ static int authenticate(Connection *c, char *student_id, size_t size)
 
         if (r.ok) {
             snprintf(student_id, size, "%s", id);
-            /* The INFO line holds the welcome text, e.g.
-             * "INFO Welcome, Amina Uwase (S1001)". */
             printf("\n  [SUCCESS] Authentication successful.");
             for (int i = 0; i < r.count; i++)
                 if (strncmp(r.lines[i], "INFO ", 5) == 0)
                     printf(" %s", r.lines[i] + 5);
             printf("\n\nAvailable events:");
-            show_events(&r);        /* list sent by the server on login */
+            show_events(&r);
             return 1;
         }
         if (strcmp(r.code, "TOO_MANY_ATTEMPTS") == 0) {
             printf("  [FAILED] Authentication failed: %s\n", r.text);
-            return -1;              /* server closes the connection */
+            return -1;
         }
         if (strcmp(r.code, "IN_USE") == 0)
             printf("  [FAILED] %s\n", r.text);
@@ -334,25 +246,22 @@ static int authenticate(Connection *c, char *student_id, size_t size)
     }
 }
 
-/* Ask for an event ID and send the registration request. */
 static int register_for_event(Connection *c)
 {
     Reply r;
     char input[64];
 
-    /* Show the current list first, so the student sees up-to-date places. */
     if (request(c, &r, "LIST", NULL) < 0)
         return -1;
     show_events(&r);
 
     if (prompt("Enter the event ID to register for (0 to cancel): ",
                input, sizeof input) < 0)
-        return 1;                   /* Ctrl+D / Ctrl+C: leave the menu */
+        return 1;
     if (strcmp(input, "0") == 0) {
         printf("  Registration cancelled.\n\n");
         return 0;
     }
-    /* Basic input check before contacting the server. */
     if (input[0] == '\0' || strspn(input, "0123456789") != strlen(input)) {
         printf("  [ERROR] '%s' is not a valid event ID (use a number such "
                "as 101).\n\n", input);
@@ -387,7 +296,6 @@ static int show_my_events(Connection *c)
     return 0;
 }
 
-/* Main menu. Returns 0 when the user exits, -1 if the connection failed. */
 static int menu(Connection *c)
 {
     Reply r;
@@ -422,7 +330,6 @@ static int menu(Connection *c)
     }
 }
 
-/* main */
 int main(int argc, char *argv[])
 {
     const char *host = argc > 1 ? argv[1] : DEFAULT_HOST;
@@ -432,15 +339,14 @@ int main(int argc, char *argv[])
     Reply r;
     int status = EXIT_SUCCESS;
 
-    setvbuf(stdout, NULL, _IOLBF, 0);   /* keep stdout/stderr in order */
+    setvbuf(stdout, NULL, _IOLBF, 0);
     echo_input = !isatty(STDIN_FILENO);
     signal(SIGPIPE, SIG_IGN);
-    struct sigaction sa = {0};          /* Ctrl+C -> leave cleanly */
+    struct sigaction sa = {0};
     sa.sa_handler = on_sigint;
     sigemptyset(&sa.sa_mask);
     sigaction(SIGINT, &sa, NULL);
 
-    /* 1. Connect */
     printf("Connecting to %s:%s ...\n", host, port);
     conn.fd = connect_to_server(host, port);
     if (conn.fd < 0) {
@@ -449,7 +355,6 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    /* Welcome line (or SERVER_FULL if the server has no free slot). */
     if (read_reply(&conn, &r) < 0 || !r.ok) {
         printf("Server refused the connection: %s\n",
                r.count > 0 ? r.text : "connection closed");
@@ -458,17 +363,14 @@ int main(int argc, char *argv[])
     }
     printf("Connected. %s\n\n", r.text);
 
-    /* 2-5. Authenticate, then show events */
     int auth = authenticate(&conn, student_id, sizeof student_id);
 
-    /* 6-8. Menu: select an event, register, show result */
     int result = auth == 1 ? menu(&conn) : auth;
 
     if (result < 0) {
         printf("The server closed the connection.\n");
         status = EXIT_FAILURE;
     } else {
-        /* Graceful exit: tell the server, wait for its goodbye. */
         if (request(&conn, &r, "QUIT", NULL) == 0 && r.ok)
             printf("Server: %s\n", r.text);
     }
