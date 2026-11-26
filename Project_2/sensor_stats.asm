@@ -1,7 +1,6 @@
-;==============================================================================
-; sensor_stats.asm - Sensor reading validator and statistics calculator
+; sensor_stats.asm: Sensor reading validator and statistics calculator
 ;
-; Assembler / environment : NASM 2.16, GNU ld 2.42, Linux x86-64 (Ubuntu 24.04)
+; Assembler / environment : NASM 3.01, GNU ld 2.46, Linux x86-64 (Ubuntu 26.04)
 ; Uses Linux system calls directly (no C library).
 ;
 ; Build:
@@ -19,14 +18,11 @@
 ; Both LF (Unix) and CRLF (Windows) line endings are accepted.
 ;
 ; Exit status: 0 = success, 1 = open error, 2 = read error, 3 = close error
-;==============================================================================
 
 BITS 64
 DEFAULT REL                     ; all memory references are RIP-relative
 
-;------------------------------------------------------------------------------
 ; Constants
-;------------------------------------------------------------------------------
 SYS_READ    equ 0               ; Linux x86-64 system call numbers
 SYS_WRITE   equ 1
 SYS_OPEN    equ 2
@@ -61,7 +57,6 @@ F_NEGATIVE  equ 2               ; a '-' sign was read
 F_CR        equ 4               ; last character was CR (expecting LF)
 F_NONEMPTY  equ 8               ; line contains at least one character
 
-;------------------------------------------------------------------------------
 ; Register usage while the file is processed
 ;   r12  file descriptor
 ;   r13  pointer to the current character in the buffer
@@ -72,7 +67,6 @@ F_NONEMPTY  equ 8               ; line contains at least one character
 ; These registers are preserved by the kernel across syscall, so they keep
 ; their values between successive read calls. (syscall overwrites rax, rcx
 ; and r11, so those are only used for temporary values.)
-;------------------------------------------------------------------------------
 
 section .data
 default_path    db "sensor_readings.txt", 0
@@ -109,14 +103,10 @@ sum_valid       resq 1
 section .text
 global _start
 
-;==============================================================================
 ; Program entry point
-;==============================================================================
 _start:
-    ;--------------------------------------------------------------------------
     ; Choose the input file. On entry [rsp] = argc and [rsp+16] = argv[1].
     ; Default to sensor_readings.txt unless a file name was given.
-    ;--------------------------------------------------------------------------
     mov     rax, [rsp]                  ; argc
     lea     rsi, [default_path]
     cmp     rax, 2
@@ -125,10 +115,8 @@ _start:
 .have_path:
     mov     [path_ptr], rsi
 
-    ;--------------------------------------------------------------------------
     ; FILE OPEN: open(path, O_RDONLY). On success rax is the new file
     ; descriptor; on failure rax is -errno (a negative number).
-    ;--------------------------------------------------------------------------
     mov     eax, SYS_OPEN
     mov     rdi, rsi                    ; arg1: path
     mov     esi, O_RDONLY               ; arg2: flags
@@ -143,12 +131,10 @@ _start:
     mov     ebx, PH_START               ; phase = start of line
     xor     ebp, ebp                    ; flags = none
 
-;==============================================================================
-; OUTER LOOP - read the file one buffer at a time.
+; OUTER LOOP: read the file one buffer at a time.
 ; read() returns the number of bytes read, 0 at end of file, or -errno.
 ; Lines can be split across two reads; this is handled because the parser
 ; state (r15, ebx, ebp) is kept in registers between reads.
-;==============================================================================
 read_loop:
     mov     eax, SYS_READ
     mov     rdi, r12                    ; arg1: file descriptor
@@ -162,14 +148,12 @@ read_loop:
     lea     r13, [buffer]               ; r13 = first byte of the new data
     mov     r14, rax                    ; r14 = number of bytes to process
 
-;==============================================================================
-; INNER LOOP - examine the buffer one character at a time.
+; INNER LOOP: examine the buffer one character at a time.
 ; Each character either ends the record (LF) or updates the parser state.
-;==============================================================================
 char_loop:
     movzx   eax, byte [r13]             ; al = current character (rax zeroed)
 
-    ;--- Line boundary: LF ends the current record ---------------------------
+    ; Line boundary: LF ends the current record
     cmp     al, LF
     jne     .not_lf
     call    end_record                  ; classify the finished line
@@ -177,7 +161,7 @@ char_loop:
 .not_lf:
     or      ebp, F_NONEMPTY             ; this line has content
 
-    ;--- CRLF handling: a CR is only allowed directly before LF --------------
+    ; CRLF handling: a CR is only allowed directly before LF
     test    ebp, F_CR                   ; was the previous character CR?
     jz      .no_pending_cr
     or      ebp, F_INVALID              ; CR followed by something other
@@ -189,11 +173,11 @@ char_loop:
     jmp     next_char                   ; it is a normal Windows line ending
 .not_cr:
 
-    ;--- Once a line is invalid, skip its remaining characters ---------------
+    ; Once a line is invalid, skip its remaining characters
     test    ebp, F_INVALID
     jnz     next_char
 
-    ;--- Validation: branch on the parser phase ------------------------------
+    ; Validation: branch on the parser phase
     cmp     ebx, PH_START
     je      .phase_start
     cmp     ebx, PH_SIGN
@@ -248,12 +232,10 @@ char_loop:
     mov     ebx, PH_TRAIL
     jmp     next_char
 
-;------------------------------------------------------------------------------
 ; NUMERIC CONVERSION: value = value * 10 + (character - '0')
 ; Example "42": 0*10 + 4 = 4, then 4*10 + 2 = 42.
 ; Any value above 100 is already invalid, so it is clamped to 101. This
 ; keeps the number small and prevents overflow on very long digit strings.
-;------------------------------------------------------------------------------
 accumulate:
     sub     eax, '0'                    ; ASCII digit -> number 0..9
     imul    r15, r15, 10                ; shift previous digits left
@@ -272,18 +254,14 @@ next_char:
     jnz     char_loop                   ; more bytes -> continue inner loop
     jmp     read_loop                   ; buffer used up -> read more
 
-;------------------------------------------------------------------------------
 ; End of file. If the last line had no trailing LF it has not been counted
 ; yet, so classify it now. (A file ending in LF has no extra record.)
-;------------------------------------------------------------------------------
 end_of_file:
     test    ebp, F_NONEMPTY
     jz      close_file
     call    end_record
 
-;------------------------------------------------------------------------------
 ; FILE CLOSE: close(fd) releases the file descriptor.
-;------------------------------------------------------------------------------
 close_file:
     mov     eax, SYS_CLOSE
     mov     rdi, r12
@@ -291,9 +269,7 @@ close_file:
     test    rax, rax
     js      close_failed
 
-;==============================================================================
-; OUTPUT - print the statistics in the required format
-;==============================================================================
+; OUTPUT: print the statistics in the required format
     lea     rsi, [msg_total]
     mov     rax, [total_count]
     call    print_stat
@@ -333,11 +309,9 @@ close_file:
     xor     edi, edi                    ; exit status 0
     jmp     exit_program
 
-;==============================================================================
-; end_record - classify the line that just ended and update the statistics,
+; end_record: classify the line that just ended and update the statistics,
 ; then reset the parser for the next line.
 ;   in : r15 = value, ebx = phase, ebp = flags
-;==============================================================================
 end_record:
     inc     qword [total_count]         ; every line is a record
 
@@ -375,10 +349,8 @@ end_record:
     xor     ebp, ebp
     ret
 
-;==============================================================================
 ; Error handling. The kernel returns -errno; it is negated and printed
 ; together with the file name, and the program exits with a non-zero status.
-;==============================================================================
 open_failed:
     neg     rax                         ; -errno -> errno
     mov     rbx, rax
@@ -406,21 +378,15 @@ close_failed:
     mov     edi, 3
     jmp     exit_program
 
-;------------------------------------------------------------------------------
-; exit_program - terminate the process.   in: edi = exit status
-;------------------------------------------------------------------------------
+; exit_program: terminate the process.   in: edi = exit status
 exit_program:
     mov     eax, SYS_EXIT
     syscall
 
-;==============================================================================
 ; Output helpers
-;==============================================================================
 
-;------------------------------------------------------------------------------
-; print_stat - print "<label><value>\n" to stdout
+; print_stat: print "<label><value>\n" to stdout
 ;   in: rsi = label (NUL-terminated), rax = unsigned value
-;------------------------------------------------------------------------------
 print_stat:
     push    rax                         ; save value across write_str
     mov     edi, STDOUT
@@ -430,9 +396,7 @@ print_stat:
     lea     rsi, [newline]
     jmp     write_str                   ; tail call: newline, then return
 
-;------------------------------------------------------------------------------
-; print_na - print "<label>N/A\n" to stdout.   in: rsi = label
-;------------------------------------------------------------------------------
+; print_na: print "<label>N/A\n" to stdout.   in: rsi = label
 print_na:
     mov     edi, STDOUT
     call    write_str
@@ -441,10 +405,8 @@ print_na:
     lea     rsi, [newline]
     jmp     write_str
 
-;------------------------------------------------------------------------------
-; print_error - print "<prefix><path>' (errno N)\n" to stderr
+; print_error: print "<prefix><path>' (errno N)\n" to stderr
 ;   in: rsi = message prefix, rbx = errno
-;------------------------------------------------------------------------------
 print_error:
     mov     edi, STDERR
     call    write_str
@@ -457,11 +419,9 @@ print_error:
     lea     rsi, [err_end]
     jmp     write_str
 
-;------------------------------------------------------------------------------
-; write_str - write a NUL-terminated string
+; write_str: write a NUL-terminated string
 ;   in: rdi = file descriptor, rsi = string
 ; Loop counts characters up to the NUL byte, then one write() sends them.
-;------------------------------------------------------------------------------
 write_str:
     xor     edx, edx                    ; rdx = length
 .count:
@@ -474,12 +434,10 @@ write_str:
     syscall                             ; rdi/rsi/rdx are preserved
     ret
 
-;------------------------------------------------------------------------------
-; write_uint - write an unsigned 64-bit integer in decimal
+; write_uint: write an unsigned 64-bit integer in decimal
 ;   in: rdi = file descriptor, rax = value
 ; Repeated division by 10 gives the digits from right to left; each
 ; remainder is turned into an ASCII character and stored backwards.
-;------------------------------------------------------------------------------
 write_uint:
     lea     rsi, [numbuf + 31]          ; end of the scratch buffer
     mov     byte [rsi], 0               ; string terminator
