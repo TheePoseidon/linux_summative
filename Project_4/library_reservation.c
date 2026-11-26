@@ -1,5 +1,5 @@
 /*
- * library_reservation.c - Library book reservation system using POSIX
+ * library_reservation.c: Library book reservation system using POSIX
  *                          threads, a mutex and condition variables.
  *
  * Build:  gcc -Wall -Wextra -pthread -o library_reservation library_reservation.c
@@ -16,7 +16,6 @@
  *                         prints a final summary and destroys the
  *                         synchronisation objects.
  *
- * ---------------------------------------------------------------------------
  * HOW SHARED MEMORY IS PROTECTED
  *   All shared data (the queue and every counter) lives in one struct,
  *   `lib`, and is guarded by ONE mutex, lib.lock. Rule: no thread reads or
@@ -27,9 +26,9 @@
  *
  * HOW LOCKING IS APPLIED
  *   Locks are held only for short critical sections: changing the queue,
- *   updating counters, or copying statistics. The slow parts - the 1 s
+ *   updating counters, or copying statistics. The slow parts (the 1 s
  *   submission delay, the 3 s processing delay and printing the monitor
- *   report - happen with the mutex UNLOCKED, so the threads really run
+ *   report) happen with the mutex UNLOCKED, so the threads really run
  *   in parallel and never block each other for long.
  *
  * HOW CONDITION VARIABLES COORDINATE THE THREADS
@@ -100,9 +99,7 @@
         }                                                                 \
     } while (0)
 
-/* ------------------------------------------------------------------------
- * Data types
- * --------------------------------------------------------------------- */
+/* Data types */
 
 typedef struct {
     int id;                             /* unique, incremental */
@@ -138,9 +135,7 @@ typedef struct {
 static LibrarySystem lib;
 static struct timespec start_time;      /* for elapsed-time stamps */
 
-/* ------------------------------------------------------------------------
- * Helpers
- * --------------------------------------------------------------------- */
+/* Helpers */
 
 /* Seconds since the program started, used to timestamp every message. */
 static double elapsed(void)
@@ -190,9 +185,7 @@ static int book_is_available(int book_id)
     return book_id % 2 == 0;                    /* even = available */
 }
 
-/* ========================================================================
- * Student thread (producer)
- * ===================================================================== */
+/* Student thread (producer) */
 static void *student_thread(void *arg)
 {
     unsigned int seed = *(unsigned int *)arg;   /* private RNG state */
@@ -206,7 +199,7 @@ static void *student_thread(void *arg)
 
         sleep(SUBMIT_SECONDS);                  /* 1 s to submit, unlocked */
 
-        CHECK(pthread_mutex_lock(&lib.lock));   /* ---- critical section */
+        CHECK(pthread_mutex_lock(&lib.lock));   /* critical section */
 
         /* FULL QUEUE: wait until the staff thread frees a slot.
          * pthread_cond_wait releases the lock while waiting, so the staff
@@ -232,7 +225,7 @@ static void *student_thread(void *arg)
         /* Wake the staff thread if it is waiting on an empty queue. */
         CHECK(pthread_cond_signal(&lib.not_empty));
 
-        CHECK(pthread_mutex_unlock(&lib.lock)); /* ---- end critical section */
+        CHECK(pthread_mutex_unlock(&lib.lock)); /* end critical section */
     }
 
     CHECK(pthread_mutex_lock(&lib.lock));
@@ -242,15 +235,13 @@ static void *student_thread(void *arg)
     pthread_exit(NULL);
 }
 
-/* ========================================================================
- * Library staff thread (consumer)
- * ===================================================================== */
+/* Library staff thread (consumer) */
 static void *staff_thread(void *arg)
 {
     (void)arg;
 
     for (int done = 0; done < TOTAL_RESERVATIONS; done++) {
-        CHECK(pthread_mutex_lock(&lib.lock));   /* ---- critical section */
+        CHECK(pthread_mutex_lock(&lib.lock));   /* critical section */
 
         /* EMPTY QUEUE: wait until the student adds a request. */
         if (lib.queue.count == 0)
@@ -267,7 +258,7 @@ static void *staff_thread(void *arg)
          * queue. */
         CHECK(pthread_cond_signal(&lib.not_full));
 
-        CHECK(pthread_mutex_unlock(&lib.lock)); /* ---- end critical section */
+        CHECK(pthread_mutex_unlock(&lib.lock)); /* end critical section */
 
         sleep(PROCESS_SECONDS);                 /* 3 s to process, unlocked */
 
@@ -299,9 +290,7 @@ static void *staff_thread(void *arg)
     pthread_exit(NULL);
 }
 
-/* ========================================================================
- * Monitoring thread
- * ===================================================================== */
+/* Monitoring thread */
 static void *monitor_thread(void *arg)
 {
     (void)arg;
@@ -357,9 +346,7 @@ static void *monitor_thread(void *arg)
     pthread_exit(NULL);
 }
 
-/* ========================================================================
- * main - set up, run the threads, wait for them, clean up
- * ===================================================================== */
+/* main: set up, run the threads, wait for them, clean up */
 int main(void)
 {
     pthread_t student, staff, monitor;
